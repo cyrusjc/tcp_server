@@ -5,9 +5,7 @@
 #include <stdlib.h>
 #include <netinet/in.h>
 #include <string.h>
-
 #include <pthread.h>        // for multithreading
-
 #include <dirent.h>
 
 #define PORT 4000
@@ -70,8 +68,6 @@ void printFile(int socket){
     
     
     recv(socket, buffer, sizeof(buffer),0);
-    
-
     printf("\nFile is:  %s\n", buffer);
     
     // checking for path validity
@@ -106,6 +102,58 @@ void printFile(int socket){
     return;
 }
 
+void uploadFile (int socket){
+    int size = 10;
+    int finish;
+    char actualpath[PATH_MAX+1];
+    
+    char send_buffer[BUFSIZE], read_buffer[256];
+    
+    char *msg = "What would you like to download?";
+    send(socket, msg, strlen(msg), 1);
+    
+    memset(read_buffer, '\0', sizeof(read_buffer));
+    recv(socket, read_buffer, sizeof(read_buffer),0);
+    printf("\nFile is:  %s\n", read_buffer);
+    
+    // checking for path validity
+    if (realpath(read_buffer, actualpath) == NULL){
+        
+        size = 0;
+        send(socket, (void*)&size, sizeof(int),0); 
+        printf("Bad Path: %s\n", read_buffer);
+        return;
+    }
+    
+    FILE *fp = fopen(actualpath, "r");
+    if (fp == NULL){
+        printf("Can't open %s\n", read_buffer);
+        return;
+    } 
+
+    
+    fseek(fp,0,SEEK_END);
+    size = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    send(socket, (void*)&size, sizeof(int), 0); 
+     
+    
+    while (!feof(fp)){
+        size = fread(send_buffer,1,sizeof(send_buffer)-1, fp);
+        
+        do{
+            finish = write(socket,send_buffer,size);
+        } while(finish < 0);
+        
+        printf("Packet Size: %i\n", size);
+        memset(send_buffer, '\0' ,sizeof(send_buffer));
+
+    }
+    return;
+    
+    
+}
+
 void * handler(void *p_socket){
     
         int socket = *((int*)p_socket);
@@ -113,7 +161,7 @@ void * handler(void *p_socket){
         int cont = 1;
         
         char buffer[30000] = {0};
-        char *hello = "What would you like to do?\n 1. List\n 2. Read File\n 0. Terminate";
+        char *hello = "What would you like to do?\n 1. List\n 2. Read File\n 3. Upload \n 0. Terminate";
         send(socket , hello , strlen(hello), 0);
         
         while(cont){
@@ -123,23 +171,23 @@ void * handler(void *p_socket){
             switch(buffer[0])
             {
                 case '1': 
-                    printf("1\n");
                     //send(socket, "Sending Files", strlen("Sending Files"), 0);
                     listFiles(socket);
                     break;
                 case '2':
-                    printf("2 recieved\n");
                     printFile(socket);
+                    break;
+                case '3':
+                    uploadFile(socket);
                     break;
                 case '0':
                     cont = 0;
                     break;
                 default:
-                    printf("Error number\n");
                     send(socket, "Please enter another number: ", 32,0 );
                     break;
             }
-            buffer[0] = '\0';
+            memset(buffer, 0, sizeof(buffer));
         }
         
         printf("Terminating socket\n");
