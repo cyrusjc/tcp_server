@@ -8,8 +8,9 @@
 #include <pthread.h>        // for multithreading
 #include <dirent.h>
 
-#define PORT 4000
-#define BACKLOG 10
+ 
+#define PORT 4000 // FTP supposed to be 21 PORT 
+#define BACKLOG 10 // # of incoming connections at a time
 
 #define BUFSIZE 40000
 
@@ -25,7 +26,6 @@ int createSocket(){
 }
 
 void bindSocket(int socket,struct sockaddr_in address){
-    
     
     if (bind(socket, (struct sockaddr *)&address, sizeof(address))<0)
     {
@@ -210,7 +210,7 @@ int main()
     address.sin_port = htons( PORT );
     bindSocket(server_fd, address);
     
-
+    
     if (listen(server_fd, BACKLOG) < 0)
     {
         perror("In listen");
@@ -222,7 +222,7 @@ int main()
     
     while(1)
     {
-        printf("\n+++++++ Waiting for new connection ++++++++\n");
+        printf("\n Accepting new connections... \n");
         if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen))<0)
         {
             perror("In accept");
@@ -230,7 +230,7 @@ int main()
         }
         puts("Connected\n");
         
-        
+        // everytime it's connected it creates a new proccess that handles one connection
         pthread_t thread;
         int *p_new_socket = malloc(sizeof(int));
         *p_new_socket = new_socket;
